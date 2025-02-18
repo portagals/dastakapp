@@ -13,10 +13,8 @@ import Cards from './Card';
 export default function Main({ handelClick }) {
   const [searchResult, setSearchResult] = useState(null); 
   const [searchQuery, setSearchQuery] = useState(""); 
-  const [cnicQuery, setCnicQuery] = useState("");
   const [loading, setLoading] = useState(false); 
   const [error, setError] = useState(null);
-  const [imagePath, setImagePath] = useState(""); 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -24,19 +22,20 @@ export default function Main({ handelClick }) {
     const licenseFromURL = searchParams.get('license');
     if (licenseFromURL) {
       setSearchQuery(licenseFromURL);
-      handleSearch(licenseFromURL);
+      handleAutoSearch(licenseFromURL);
     }
   }, [searchParams]);
-  
-  
+
+  const handleAutoSearch = async (license) => {
+    setLoading(true);
+    setError(null);
     
-  const handleSearch = async (license = searchQuery) => {
-    setLoading(true); 
-    setError(null); 
-      
-     
     try {
-      const response = await axios.post('https://api.dastakappecitizenkp.com/weapons/details', { license });
+      const response = await axios.post(
+        'https://api.dastakappecitizenkp.com/weapons/details', 
+        { license }
+      );
+      
       if (response.data) {
         setSearchResult(response.data);
       } else {
@@ -49,10 +48,33 @@ export default function Main({ handelClick }) {
     }
   };
 
-  const handlePrompt = (message, setFunction) => {
-    const userInput = prompt(message);
-    if (userInput) {
-      setFunction(userInput);
+  const handleManualSearch = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const cnic = prompt("Please enter your CNIC number:");
+    if (!cnic) {
+      setError("CNIC is required for manual search");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        'https://api.dastakappecitizenkp.com/weapons/details', 
+        { license: searchQuery }
+      );
+      
+      if (response.data) {
+        setSearchResult(response.data);
+      } else {
+        setError("Result not found");
+      }
+    } catch (err) {
+      setError("Error retrieving data");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -65,7 +87,7 @@ export default function Main({ handelClick }) {
       <div className='md:flex justify-between pt-0 p-5 h-[930px]'>
 
         <div className='bg-white w-[100%] md:w-[48%] p-10'>
-          <form onSubmit={handleSearch}>
+          <form onSubmit={handleManualSearch}>
             <div>
               <input
                 type="text"
@@ -80,16 +102,12 @@ export default function Main({ handelClick }) {
               <button 
                 type="submit"
                 className='bg-sky-400 py-3 px-6 text-white rounded-full m-3 flex lg:text-[13px]'
-                onClick={() => handlePrompt("Enter Your CNIC", setCnicQuery)}
-                disabled={loading}
               >
                 <TbFileSearch className='lg:text-[18px] md:mr-3 lg:mr-0' />Search By Application ID
               </button>
               <button
                 type="submit"
                 className='bg-[#0ddbb9] py-3 px-6 text-white rounded-full m-3 flex lg:text-[13px]'
-                onClick={() => handlePrompt("Enter Your CNIC", setCnicQuery)}
-                disabled={loading}
               >
                 <RiUserSearchLine className='lg:text-[18px] md:mr-3 lg:mr-0' />Search By License #
               </button>
@@ -109,7 +127,7 @@ export default function Main({ handelClick }) {
                 license={searchResult.license}
                 weapon={searchResult.weapon}
                 cartidges={searchResult.cartridges}
-                issue={searchResult.issue?.split("T")[0]}  // Extracts only the date part
+                issue={searchResult.issue?.split("T")[0]}
                 valid={searchResult.valid?.split("T")[0]}
               />
             ) : (
